@@ -62,6 +62,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // 更新桌面 Widget
-        PetWidgetProvider.updateAllWidgets(this)
+        PetWidgetProvider.updateAll(this)
     }
 }

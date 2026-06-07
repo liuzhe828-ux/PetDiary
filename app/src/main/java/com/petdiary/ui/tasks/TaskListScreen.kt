@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -34,9 +33,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,32 +57,22 @@ fun TaskListScreen(
     onNewTask: () -> Unit,
     onEditTask: (Long) -> Unit
 ) {
-    val tasks by viewModel.tasks
-    val showCompleted by viewModel.showCompleted
+    val tasks by viewModel.tasks.collectAsState()
+    val showCompleted by viewModel.showCompleted.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "待办事项",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = Primary,
-                    titleContentColor = OnPrimary
+                title = { Text("待办事项", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Primary, titleContentColor = OnPrimary
                 ),
                 actions = {
                     FilterChip(
                         selected = showCompleted,
                         onClick = { viewModel.toggleShowCompleted() },
                         label = { Text("已完成") },
-                        modifier = Modifier.padding(end = 8.dp),
-                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Secondary.copy(alpha = 0.3f),
-                            selectedLabelColor = OnPrimary
-                        )
+                        modifier = Modifier.padding(end = 8.dp)
                     )
                 }
             )
@@ -96,24 +86,15 @@ fun TaskListScreen(
             }
         }
     ) { padding ->
-        val filteredTasks = if (showCompleted) {
-            tasks
-        } else {
-            tasks.filter { task: TaskItem -> !task.isCompleted }
-        }
+        val displayTasks = if (showCompleted) tasks else tasks.filter { task -> !task.isCompleted }
 
-        if (filteredTasks.isEmpty()) {
+        if (displayTasks.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "✅",
-                        fontSize = MaterialTheme.typography.headlineLarge.fontSize
-                    )
+                    Text(text = "✅", fontSize = MaterialTheme.typography.headlineLarge.fontSize)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = if (showCompleted) "还没有已完成的任务" else "还没有待办事项\n点击右下角添加吧",
@@ -124,14 +105,11 @@ fun TaskListScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(4.dp)) }
-                items(filteredTasks, key = { t: TaskItem -> t.id }) { task ->
+                items(displayTasks, key = { item -> item.id }) { task ->
                     TaskCard(
                         task = task,
                         onToggle = { viewModel.toggleComplete(task) },
@@ -152,7 +130,7 @@ private fun TaskCard(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val dateFormat = remember { SimpleDateFormat("MM/dd HH:mm", Locale.CHINESE) }
+    val dateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.CHINESE)
     val priorityColor = when (task.priority) {
         3 -> PriorityHigh
         2 -> PriorityMedium
@@ -165,9 +143,7 @@ private fun TaskCard(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (task.isCompleted)
@@ -178,16 +154,10 @@ private fun TaskCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 完成按钮
-            IconButton(
-                onClick = onToggle,
-                modifier = Modifier.size(40.dp)
-            ) {
+            IconButton(onClick = onToggle, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = if (task.isCompleted) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
                     contentDescription = if (task.isCompleted) "取消完成" else "标记完成",
@@ -197,89 +167,49 @@ private fun TaskCard(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
-
-            // 内容
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                    color = if (task.isCompleted)
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    else
-                        MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = if (task.isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
-
                 if (task.description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = task.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
-
                 Spacer(modifier = Modifier.height(4.dp))
-
-                // 标签行
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // 优先级标签
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
+                        modifier = Modifier.clip(RoundedCornerShape(4.dp))
                             .background(priorityColor.copy(alpha = 0.15f))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Text(
-                            text = priorityLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = priorityColor,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = MaterialTheme.typography.bodySmall.fontSize.times(0.85f)
-                        )
+                        Text(text = priorityLabel, style = MaterialTheme.typography.bodySmall,
+                            color = priorityColor, fontWeight = FontWeight.Medium)
                     }
-
-                    // 截止日期
                     if (task.dueDate != null) {
-                        Text(
-                            text = "📅 ${dateFormat.format(Date(task.dueDate))}",
+                        Text(text = "📅 ${dateFormat.format(Date(task.dueDate))}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            fontSize = MaterialTheme.typography.bodySmall.fontSize.times(0.85f)
-                        )
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                     }
-
-                    // 提醒图标
                     if (task.reminderTime != null && !task.isCompleted) {
-                        Icon(
-                            Icons.Outlined.Notifications,
-                            contentDescription = "已设提醒",
-                            modifier = Modifier.size(14.dp),
-                            tint = Secondary
-                        )
+                        Icon(Icons.Outlined.Notifications, contentDescription = "已设提醒",
+                            modifier = Modifier.size(14.dp), tint = Secondary)
                     }
                 }
             }
-
-            // 删除按钮
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = "删除",
-                    tint = Error.copy(alpha = 0.5f),
-                    modifier = Modifier.size(18.dp)
-                )
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Filled.Delete, contentDescription = "删除",
+                    tint = Error.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
             }
         }
     }

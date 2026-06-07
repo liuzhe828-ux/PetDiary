@@ -32,6 +32,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,8 +54,8 @@ import com.petdiary.ui.theme.Secondary
 
 @Composable
 fun PetScreen(viewModel: PetViewModel) {
-    val petState = viewModel.petState.value
-    val message = viewModel.message.value
+    val petState by viewModel.pet.collectAsState()
+    val message by viewModel.message.collectAsState()
     var showNameDialog by remember { mutableStateOf(false) }
 
     // 跳动动画

@@ -56,11 +56,12 @@ import com.petdiary.ui.theme.Secondary
 fun PetScreen(viewModel: PetViewModel) {
     val petState by viewModel.pet.collectAsState()
     val msg by viewModel.message.collectAsState()
+    val displayMsg = msg
     var showNameDialog by remember { mutableStateOf(false) }
 
     // 跳动动画
     val scale by animateFloatAsState(
-        targetValue = if (msg != null) 1.05f else 1f,
+        targetValue = if (displayMsg != null) 1.05f else 1f,
         animationSpec = tween(300),
         label = "pet_bounce"
     )
@@ -161,10 +162,10 @@ fun PetScreen(viewModel: PetViewModel) {
                 }
 
                 // 宠物消息
-                if (msg != null) {
+                if (displayMsg != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = msg,
+                        text = displayMsg,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Primary,
                         fontWeight = FontWeight.Medium

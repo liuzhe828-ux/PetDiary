@@ -44,7 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.petdiary.data.entity.TaskItem
+import com.petdiary.data.TaskData
 import com.petdiary.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -125,7 +125,7 @@ fun TaskListScreen(
 
 @Composable
 private fun TaskCard(
-    task: TaskItem,
+    task: TaskData,
     onToggle: () -> Unit,
     onClick: () -> Unit,
     onDelete: () -> Unit

@@ -4,76 +4,62 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.petdiary.PetDiaryApplication
-import com.petdiary.data.entity.PetState
+import com.petdiary.data.PetData
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class PetViewModel(application: Application) : AndroidViewModel(application) {
-    private val petRepository = (application as PetDiaryApplication).petRepository
+    private val store = (application as PetDiaryApplication).dataStore
 
-    private val _petState = MutableStateFlow<PetState>(PetState())
-    val petState: StateFlow<PetState> = _petState.asStateFlow()
+    private val _pet = MutableStateFlow(store.getPet())
+    val pet = _pet.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            petRepository.getPetState().collect { pet ->
-                if (pet != null) {
-                    _petState.value = petRepository.tickDecay(pet)
-                } else {
-                    petRepository.savePetState(PetState())
-                    _petState.value = PetState()
-                }
-            }
-        }
-    }
+    val message = _message.asStateFlow()
 
     fun feed() {
-        viewModelScope.launch {
-            val updated = petRepository.feedPet(_petState.value)
-            _petState.value = updated
-            _message.value = "${updated.name}吃得很开心！😋"
-            clearMessageAfterDelay()
-        }
+        val current = _pet.value
+        val newHunger = (current.hunger + 30).coerceAtMost(100)
+        val newExp = current.exp + 10
+        val newLevel = if (newExp >= current.level * 100) current.level + 1 else current.level
+        val updated = current.copy(hunger = newHunger, exp = newExp % (newLevel * 100), level = newLevel, lastFedTime = System.currentTimeMillis())
+        store.savePet(updated)
+        _pet.value = updated
+        _message.value = "${updated.name}吃得很开心！😋"
+        clearMsg()
     }
 
     fun play() {
-        viewModelScope.launch {
-            val updated = petRepository.playWithPet(_petState.value)
-            _petState.value = updated
-            _message.value = "${updated.name}玩得真高兴！🎉"
-            clearMessageAfterDelay()
-        }
+        val current = _pet.value
+        val newHappiness = (current.happiness + 30).coerceAtMost(100)
+        val newExp = current.exp + 15
+        val newLevel = if (newExp >= current.level * 100) current.level + 1 else current.level
+        val updated = current.copy(happiness = newHappiness, exp = newExp % (newLevel * 100), level = newLevel, lastPlayedTime = System.currentTimeMillis())
+        store.savePet(updated)
+        _pet.value = updated
+        _message.value = "${updated.name}玩得真高兴！🎉"
+        clearMsg()
     }
 
-    fun changeName(newName: String) {
-        viewModelScope.launch {
-            val updated = _petState.value.copy(name = newName)
-            petRepository.savePetState(updated)
-            _petState.value = updated
-            _message.value = "你好，$newName！"
-            clearMessageAfterDelay()
-        }
+    fun changeName(name: String) {
+        val updated = _pet.value.copy(name = name)
+        store.savePet(updated)
+        _pet.value = updated
+        _message.value = "你好，$name！"
+        clearMsg()
     }
 
     fun changeType(type: String) {
-        viewModelScope.launch {
-            val updated = _petState.value.copy(petType = type)
-            petRepository.savePetState(updated)
-            _petState.value = updated
-            _message.value = "新宠物来了！"
-            clearMessageAfterDelay()
-        }
+        val updated = _pet.value.copy(petType = type)
+        store.savePet(updated)
+        _pet.value = updated
+        _message.value = "新宠物来了！"
+        clearMsg()
     }
 
-    private fun clearMessageAfterDelay() {
-        viewModelScope.launch {
-            kotlinx.coroutines.delay(2000)
-            _message.value = null
-        }
+    private fun clearMsg() {
+        viewModelScope.launch { delay(2000); _message.value = null }
     }
 }

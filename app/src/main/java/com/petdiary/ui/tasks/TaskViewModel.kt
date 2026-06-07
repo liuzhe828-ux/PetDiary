@@ -2,105 +2,54 @@ package com.petdiary.ui.tasks
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import com.petdiary.PetDiaryApplication
-import com.petdiary.data.entity.TaskItem
-import com.petdiary.worker.TaskReminderScheduler
+import com.petdiary.data.TaskData
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
-    private val taskRepository = (application as PetDiaryApplication).taskRepository
-    private val reminderScheduler = TaskReminderScheduler(application)
+    private val store = (application as PetDiaryApplication).dataStore
+    private val scheduler = (application as PetDiaryApplication).taskScheduler
 
-    private val _tasks = MutableStateFlow<List<TaskItem>>(emptyList())
-    val tasks: StateFlow<List<TaskItem>> = _tasks.asStateFlow()
+    private val _tasks = MutableStateFlow(store.getAllTasks())
+    val tasks = _tasks.asStateFlow()
 
-    private val _currentTask = MutableStateFlow<TaskItem?>(null)
-    val currentTask: StateFlow<TaskItem?> = _currentTask.asStateFlow()
+    private val _currentTask = MutableStateFlow<TaskData?>(null)
+    val currentTask = _currentTask.asStateFlow()
 
     private val _showCompleted = MutableStateFlow(false)
-    val showCompleted: StateFlow<Boolean> = _showCompleted.asStateFlow()
-
-    init {
-        loadTasks()
-    }
-
-    private fun loadTasks() {
-        viewModelScope.launch {
-            taskRepository.getAllTasks().collect {
-                _tasks.value = it
-            }
-        }
-    }
+    val showCompleted = _showCompleted.asStateFlow()
 
     fun loadTask(id: Long) {
-        viewModelScope.launch {
-            _currentTask.value = taskRepository.getTaskById(id)
-        }
+        _currentTask.value = store.getAllTasks().find { it.id == id }
     }
 
-    fun saveTask(
-        title: String,
-        description: String,
-        priority: Int,
-        dueDate: Long?,
-        reminderTime: Long?
-    ) {
-        viewModelScope.launch {
-            val current = _currentTask.value
-            if (current != null) {
-                val updated = current.copy(
-                    title = title,
-                    description = description,
-                    priority = priority,
-                    dueDate = dueDate,
-                    reminderTime = reminderTime
-                )
-                taskRepository.update(updated)
-                if (reminderTime != null) {
-                    reminderScheduler.scheduleReminder(updated)
-                }
-            } else {
-                val task = TaskItem(
-                    title = title,
-                    description = description,
-                    priority = priority,
-                    dueDate = dueDate,
-                    reminderTime = reminderTime
-                )
-                val id = taskRepository.insert(task)
-                if (reminderTime != null) {
-                    reminderScheduler.scheduleReminder(task.copy(id = id))
-                }
-            }
-            _currentTask.value = null
+    fun saveTask(title: String, description: String, priority: Int, dueDate: Long?, reminderTime: Long?) {
+        val current = _currentTask.value
+        val task = if (current != null) {
+            current.copy(title = title, description = description, priority = priority, dueDate = dueDate, reminderTime = reminderTime)
+        } else {
+            TaskData(title = title, description = description, priority = priority, dueDate = dueDate, reminderTime = reminderTime)
         }
+        val id = store.saveTask(task)
+        if (reminderTime != null) scheduler.scheduleReminder(task.copy(id = id))
+        _tasks.value = store.getAllTasks()
+        _currentTask.value = null
     }
 
-    fun toggleComplete(task: TaskItem) {
-        viewModelScope.launch {
-            taskRepository.toggleComplete(task)
-            // 取消提醒
-            if (task.isCompleted) {
-                reminderScheduler.cancelReminder(task)
-            }
-        }
+    fun toggleComplete(task: TaskData) {
+        val updated = if (task.isCompleted) task.copy(isCompleted = false, completedAt = null)
+        else task.copy(isCompleted = true, completedAt = System.currentTimeMillis())
+        store.saveTask(updated)
+        if (updated.isCompleted) scheduler.cancelReminder(task)
+        _tasks.value = store.getAllTasks()
     }
 
     fun deleteTask(id: Long) {
-        viewModelScope.launch {
-            taskRepository.deleteById(id)
-        }
+        store.deleteTask(id)
+        _tasks.value = store.getAllTasks()
     }
 
-    fun toggleShowCompleted() {
-        _showCompleted.value = !_showCompleted.value
-    }
-
-    fun clearCurrentTask() {
-        _currentTask.value = null
-    }
+    fun toggleShowCompleted() { _showCompleted.value = !_showCompleted.value }
+    fun clearCurrent() { _currentTask.value = null }
 }

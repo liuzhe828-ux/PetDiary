@@ -99,7 +99,7 @@ fun TaskListScreen(
         val filteredTasks = if (showCompleted) {
             tasks
         } else {
-            tasks.filter { !it.isCompleted }
+            tasks.filter { task: TaskItem -> !task.isCompleted }
         }
 
         if (filteredTasks.isEmpty()) {
@@ -131,7 +131,7 @@ fun TaskListScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(4.dp)) }
-                items(filteredTasks, key = { it.id }) { task ->
+                items(filteredTasks, key = { t: TaskItem -> t.id }) { task ->
                     TaskCard(
                         task = task,
                         onToggle = { viewModel.toggleComplete(task) },

@@ -2,21 +2,10 @@ package com.petdiary.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -34,118 +23,37 @@ import com.petdiary.ui.tasks.TaskViewModel
 import com.petdiary.ui.theme.Primary
 import com.petdiary.ui.theme.OnPrimary
 import com.petdiary.ui.theme.Secondary
+import com.petdiary.ui.theme.OnSecondary
 
-data class BottomNavItem(
-    val label: String,
-    val icon: ImageVector,
-    val route: String
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation(openTasks: Boolean = false) {
-    val navController = rememberNavController()
-    val petViewModel: PetViewModel = viewModel()
-    val diaryViewModel: DiaryViewModel = viewModel()
-    val taskViewModel: TaskViewModel = viewModel()
+    val nav = rememberNavController()
+    val petVM: PetViewModel = viewModel()
+    val diaryVM: DiaryViewModel = viewModel()
+    val taskVM: TaskViewModel = viewModel()
+    var tab by remember { mutableIntStateOf(if (openTasks) 2 else 0) }
 
-    val bottomNavItems = listOf(
-        BottomNavItem("宠物", Icons.Filled.Pets, "pet"),
-        BottomNavItem("日记", Icons.Filled.Book, "diary"),
-        BottomNavItem("任务", Icons.Filled.Checklist, "tasks")
-    )
-
-    var selectedTab by rememberSaveable { mutableIntStateOf(if (openTasks) 2 else 0) }
-
-    Scaffold(
-        bottomBar = {
-            NavigationBar(
-                containerColor = androidx.compose.ui.graphics.Color.White
-            ) {
-                bottomNavItems.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        selected = selectedTab == index,
-                        onClick = {
-                            selectedTab = index
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
-                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
-                            selectedIconColor = Primary,
-                            selectedTextColor = Primary,
-                            indicatorColor = Primary.copy(alpha = 0.1f)
-                        )
-                    )
-                }
+    Scaffold(bottomBar = {
+        NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+            listOf("宠物" to Icons.Filled.Pets, "日记" to Icons.Filled.Book, "任务" to Icons.Filled.Checklist).forEachIndexed { i, (label, icon) ->
+                NavigationBarItem(selected = tab == i, onClick = { tab = i; nav.navigate(label) { popUpTo(nav.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true } },
+                    icon = { Icon(icon, label) }, label = { Text(label) },
+                    colors = NavigationBarItemDefaults.colors(selectedIconColor = Primary, selectedTextColor = Primary, indicatorColor = Primary.copy(alpha = 0.1f)))
             }
         }
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = "pet",
-            modifier = Modifier.padding(padding)
-        ) {
-            // 宠物
-            composable("pet") {
-                PetScreen(viewModel = petViewModel)
+    }) { p ->
+        NavHost(nav, startDestination = "宠物", Modifier.padding(p)) {
+            composable("宠物") { PetScreen(viewModel = petVM) }
+            composable("日记") { DiaryListScreen(viewModel = diaryVM, onNewEntry = { nav.navigate("日记编辑/-1") }, onEditEntry = { nav.navigate("日记编辑/$it") }) }
+            composable("日记编辑/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
+                val id = it.arguments?.getLong("id") ?: -1L
+                DiaryEditScreen(viewModel = diaryVM, entryId = if (id > 0) id else null, onBack = { nav.popBackStack() })
             }
-
-            // 日记列表
-            composable("diary") {
-                DiaryListScreen(
-                    viewModel = diaryViewModel,
-                    onNewEntry = {
-                        navController.navigate("diary_edit/-1")
-                    },
-                    onEditEntry = { id ->
-                        navController.navigate("diary_edit/$id")
-                    }
-                )
-            }
-
-            // 日记编辑
-            composable(
-                "diary_edit/{entryId}",
-                arguments = listOf(navArgument("entryId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val entryId = backStackEntry.arguments?.getLong("entryId") ?: -1L
-                DiaryEditScreen(
-                    viewModel = diaryViewModel,
-                    entryId = if (entryId > 0) entryId else null,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            // 任务列表
-            composable("tasks") {
-                TaskListScreen(
-                    viewModel = taskViewModel,
-                    onNewTask = {
-                        navController.navigate("task_edit/-1")
-                    },
-                    onEditTask = { id ->
-                        navController.navigate("task_edit/$id")
-                    }
-                )
-            }
-
-            // 任务编辑
-            composable(
-                "task_edit/{taskId}",
-                arguments = listOf(navArgument("taskId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val taskId = backStackEntry.arguments?.getLong("taskId") ?: -1L
-                TaskEditScreen(
-                    viewModel = taskViewModel,
-                    taskId = if (taskId > 0) taskId else null,
-                    onBack = { navController.popBackStack() }
-                )
+            composable("任务") { TaskListScreen(viewModel = taskVM, onNewTask = { nav.navigate("任务编辑/-1") }, onEditTask = { nav.navigate("任务编辑/$it") }) }
+            composable("任务编辑/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
+                val id = it.arguments?.getLong("id") ?: -1L
+                TaskEditScreen(viewModel = taskVM, taskId = if (id > 0) id else null, onBack = { nav.popBackStack() })
             }
         }
     }

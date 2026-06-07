@@ -14,11 +14,15 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-35 build-tools;35.0.0'
-      - run: chmod +x gradlew
-      - run: ./gradlew assembleDebug --no-daemon
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install platforms
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" --sdk_root=$ANDROID_HOME 2>/dev/null || true
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: PetDiary

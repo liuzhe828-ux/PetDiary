@@ -164,7 +164,7 @@ fun PetScreen(viewModel: PetViewModel) {
                 if (msg != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = message,
+                        text = msg,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Primary,
                         fontWeight = FontWeight.Medium
